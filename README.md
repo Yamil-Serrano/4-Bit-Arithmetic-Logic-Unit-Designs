@@ -1,4 +1,4 @@
-# 4-Bit ALU Designs
+# 4-Bit Arithmetic Logic Unit Designs
 
 A collection of 4-bit ALU implementations built entirely from discrete 74HC-series logic ICs. The project begins with a minimal ripple-carry architecture assembled on breadboard, then evolves into an expanded design featuring a 3-bit operation code and a dedicated PCB layout demonstrating how arithmetic and logic operations can be derived from fundamental gate-level building blocks.
 
