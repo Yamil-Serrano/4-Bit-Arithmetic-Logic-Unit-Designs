@@ -12,6 +12,7 @@ const int PIN_OPCODE[] = {13, 14, 27};        // Opcode [LSB to MSB]
 const int PIN_RESULT[] = {18, 19, 35, 34};    // ALU output [LSB to MSB]
 const int PIN_FLAG_EQ = 15;
 const int PIN_FLAG_ZR = 2;
+const int PIN_FLAG_Carry = 23;                
 
 // For Arduino Uno
 // const int PIN_A[]      = {2, 3, 4, 5};      // Nibble A [LSB to MSB]
@@ -200,6 +201,41 @@ FlagResult testZeroFlag()
   return {hits, total, (hits * 100.0f) / total};
 }
 
+FlagResult testCarryFlag(){
+  int hits = 0, total = 0;
+
+  for (int op = 0; op < 8; op++){
+    // Carry only has meaning for SUM and SUB
+    if (op != 0 && op != 4)
+      continue;
+
+    setOpcode(op);
+    delayMicroseconds(5);
+
+    for (byte a = 0; a < 16; a++){
+      for (byte b = 0; b < 16; b++){
+        setInputs(a, b);
+        delayMicroseconds(5);
+
+        bool expected = false;
+
+        if (op == 0) // SUM: A + B
+          expected = (a + b) > 15;
+
+        else if (op == 4) // SUB: A - B
+          expected = (a >= b);
+
+        if ((bool)digitalRead(PIN_FLAG_Carry) == expected)
+          hits++;
+
+        total++;
+      }
+    }
+  }
+
+  return {hits, total, (hits * 100.0f) / total};
+}
+
 // Reporting
 void printDivider() { Serial.println("------------------------------------------------------------"); }
 
@@ -251,7 +287,7 @@ void printFlagRow(const char *label, FlagResult r)
   Serial.println(")");
 }
 
-void printReport(FlagResult eqResult, FlagResult zrResult)
+void printReport(FlagResult eqResult, FlagResult zrResult, FlagResult carryResult)
 {
   Serial.println();
   printDivider();
@@ -319,10 +355,11 @@ void printReport(FlagResult eqResult, FlagResult zrResult)
   printDivider();
   Serial.println("                     FLAG TESTS");
   printDivider();
-  Serial.println("  Flag  |      Description           |  Result");
+  Serial.println("  Flag  |      Description                 |  Result");
   printDivider();
-  printFlagRow("EQ    | Nibble A equal to Nibble B | ", eqResult);
-  printFlagRow("ZR    | When ALU Result = 0000     | ", zrResult);
+  printFlagRow("EQ    | Nibble A equal to Nibble B       | ", eqResult);
+  printFlagRow("ZR    | When ALU Result = 0000           | ", zrResult);
+  printFlagRow("C     | When ALU Result > 1111 or < 0000 | ", carryResult);
   printDivider();
   Serial.println("                    ALU TEST COMPLETE");
   printDivider();
@@ -331,7 +368,7 @@ void printReport(FlagResult eqResult, FlagResult zrResult)
 void setup()
 {
   delay(1000);
-  Serial.begin(9600);
+  Serial.begin(115200);
 
   // LCD Boot Screen
   Wire.begin();
@@ -356,7 +393,7 @@ void setup()
     pinMode(PIN_OPCODE[i], OUTPUT);
   pinMode(PIN_FLAG_EQ, INPUT);
   pinMode(PIN_FLAG_ZR, INPUT);
-
+  pinMode(PIN_FLAG_Carry, INPUT);
   delay(2000);
 
   Serial.println("\n");
@@ -393,8 +430,9 @@ void setup()
 
   FlagResult eqResult = testEqualFlag();
   FlagResult zrResult = testZeroFlag();
+  FlagResult carryResult = testCarryFlag();
 
-  printReport(eqResult, zrResult);
+  printReport(eqResult, zrResult, carryResult);
 
   // LCD Final Report
   int perfect = 0;
