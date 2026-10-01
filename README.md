@@ -109,6 +109,7 @@ This updated version of the 4-bit minimalistic ALU introduces expanded operation
 * **Control Input**: 3-bit operation code
 * **Output Flags**:
 
+  * **Carry Flag** - Arithmetic overflow (Add) / no-borrow indicator (Sub)
   * **Equal Flag** - Indicates when A equals B
   * **Zero Flag** - Indicates when ALU result equals 0000
 
@@ -145,8 +146,8 @@ A 100µF bulk electrolytic capacitor stabilizes the 5V supply rail.
 
 ## Verification & Test Bench
 
-To validate correct operation across all input combinations, a dedicated test bench was developed using an ESP32 microcontroller. The [`firmware`](./src/tester/src) exhaustively tests all 256 input combinations (A × B, 0–15) for each of the 8 opcode states, and verifies both output flags across all cases totaling 2,048 flag assertions for the Zero flag alone.
-All five operations passed with 100% accuracy across every input combination. Both the Equal flag and Zero flag returned correct results in every tested case. Results are reported over Serial with ANSI color coding, distinguishing passing opcodes in green from partial matches in yellow. A 20×4 LCD display connected via I2C provides a real-time progress bar during testing and a summary screen upon completion.
+To validate correct operation across all input combinations, a dedicated test bench was developed using an ESP32 microcontroller. The [`firmware`](./src/tester/src) exhaustively tests all 256 input combinations
+(A × B, 0–15) for each of the 8 opcode states, verifying the ALU result and all three output flags. This amounts to 2,048 assertions for the opcode results, 2,048 for the Zero flag, 256 for the Equal flag, and 512 for the Carry flag (covering only the SUM and SUB opcodes, since Carry has no meaning for logic operations). All five operations passed with 100% accuracy across every input combination, and all three flags returned correct results in every tested case. Results are reported over Serial with ANSI color coding, distinguishing passing opcodes in green from partial matches in yellow. A 20×4 LCD display connected via I2C provides a real-time progress bar during testing and a summary screen upon completion.
 
 ### Operation Details
 
@@ -174,20 +175,53 @@ All five operations passed with 100% accuracy across every input combination. Bo
 
 * Uses 74HC02 to implement NOR logic
 
-### Flag Generation (Implemented using **74HC4002**)
+### Flag Generation
 
-* **Zero Flag**: HIGH when ALU output is 0000
-* **Equal Flag**: HIGH when A is equal to B
+This ALU is built entirely from discrete logic gates arranged in parallel paths.
+The full adder, NAND, XOR, and NOR stages all compute continuously, and the
+74HC153 multiplexers simply select which result reaches the output bus. As a
+consequence, **all flags are generated at all times, regardless of the selected
+opcode**. It is the responsibility of the user to interpret each flag according
+to the operation being performed.
+
+#### **Carry Flag**
+- Generated from the 4th full adder's carry-out
+- **Addition**: Carry = 1 when A + B > 1111 (unsigned overflow, result exceeds 4 bits)
+- **Subtraction**: Carry acts as a "no-borrow" indicator
+  - Carry = 1 → no borrow occurred → A >= B → result is positive or zero
+  - Carry = 0 → borrow occurred → A < B → result is the two's complement of a negative number
+- Not applicable (X) for logic operations (NAND, XOR, NOR)
+
+#### **Zero Flag**
+- Implemented using one of the **74HC4002** dual 4-input NOR gates
+- Input: the 4 bits of the multiplexed ALU result
+- Output: HIGH when the ALU result = 0000
+- Valid for all operations (arithmetic and logic)
+
+#### **Equal Flag**
+- Implemented using the second 4-input NOR gate of the **74HC4002**
+- Input: the 4 bits of the dedicated **A XOR B** path (74HC86), which runs
+  independently of the output multiplexer
+- Output: HIGH when A = B
+- Because the XOR path is not routed through the 74HC153 multiplexers, the
+  Equal Flag is **valid for all operations**, not only for the XOR opcode
 
 ### Truth Table Examples
 
-| A (bin) | B (bin) | Op         | Result | Zero | Equal |
-| ------- | ------- | ---------- | ------ | ---- | ----- |
-| 0101    | 0011    | 000 (Add)  | 1000   | 0    | 0     |
-| 0111    | 0010    | 100 (Sub)  | 0101   | 0    | 0     |
-| 1111    | 1111    | X01 (NAND) | 0000   | 1    | 1     |
-| 1010    | 0101    | X10 (XOR)  | 1111   | 0    | 0     |
-| 1100    | 1010    | X11 (NOR)  | 0001   | 0    | 0     |
+| A (bin) | B (bin) | Op        | Result | Carry | Zero | Equal |
+| ------- | ------- | --------- | ------ | ----- | ---- | ----- |
+| 0101    | 0011    | 000 (Add) | 1000   | 0     | 0    | 0     |
+| 1111    | 0001    | 000 (Add) | 0000   | 1     | 1    | 0     |
+| 0000    | 0000    | 000 (Add) | 0000   | 0     | 1    | 1     |
+| 0111    | 0010    | 100 (Sub) | 0101   | 1     | 0    | 0     |
+| 0001    | 0010    | 100 (Sub) | 1111   | 0     | 0    | 0     |
+| 0010    | 0111    | 100 (Sub) | 1011   | 0     | 0    | 0     |
+| 1111    | 1111    | X01 (NAND)| 0000   | X     | 1    | 1     |
+| 1010    | 0101    | X01 (NAND)| 1111   | X     | 0    | 0     |
+| 1100    | 1100    | X01 (NAND)| 1111   | X     | 0    | 1     |
+| 1010    | 0101    | X10 (XOR) | 1111   | X     | 0    | 0     |
+| 0101    | 0101    | X10 (XOR) | 0000   | X     | 1    | 1     |
+| 1100    | 1010    | X11 (NOR) | 0001   | X     | 0    | 0     |
 
 
 # FPGA Implementation: Tang Nano 9K
