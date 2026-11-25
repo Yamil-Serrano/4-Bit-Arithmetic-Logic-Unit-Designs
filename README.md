@@ -1,6 +1,6 @@
 # 4-Bit Arithmetic Logic Unit Designs
 
-A collection of 4-bit ALU implementations built entirely from discrete 74HC-series logic ICs. The project begins with a minimal ripple-carry architecture assembled on breadboard, then evolves into an expanded design featuring a 3-bit operation code and a dedicated PCB layout demonstrating how arithmetic and logic operations can be derived from fundamental gate-level building blocks.
+A collection of 4-bit ALU implementations built entirely from discrete 74HC-series logic ICs. The project begins with a minimal ripple-carry architecture assembled on breadboard, then evolves into an expanded design featuring a 3-bit operation code and a dedicated PCB layout demonstrating how arithmetic and logic operations can be derived from fundamental gate-level building blocks. All designs in this repository can be explored interactively in CircuitVerse: [4-Bit ALU Designs](https://circuitverse.org/users/292592/projects/4-bit-alu-designs)
 
 # Hardware-Minimalist 4-bit ALU
 This ALU represents the most fundamental version of the project: a design built entirely from discrete logic ICs, assembled by hand using breadboards, wiring, and basic digital components. The core idea is to show how a complete arithmetic and logic system can emerge from a minimal set of building blocks, following the principles of NAND universality and simple ripple-carry computation.
@@ -19,8 +19,9 @@ Beyond addition and subtraction, the ALU includes a NAND-based logic path to hig
   - `11` - Arithmetic subtraction (A - B) using two's complement
 - **Control Input**: 2-bit operation code
 - **Output Flags**: 
-  - **Carry Out** - For arithmetic overflow detection
-  - **Zero Flag** - Indicates when result equals 0000
+  - **Carry Out (C)** - Carry-out from the internal 4-bit adder (arithmetic overflow detection)
+  - **Zero (Z)** - Indicates when the 4-bit result equals `0000`
+  - **All-Ones (A1)** - HIGH only when both operands are `1111`
 - **Design Philosophy**: Hardware minimalism via NAND universality
 
 ## Integrated Circuits Used
@@ -30,14 +31,14 @@ Beyond addition and subtraction, the ALU includes a NAND-based logic path to hig
 | **74HC08**  | Quad AND Gate   | 2        | Carry generation for arithmetic operations     |
 | **74HC00**  | Quad NAND Gate  | 1        | NAND operation and control logic               |
 | **74HC157** | 2:1 Multiplexer | 1        | Operation selection and output routing         |
-| **74HC4002**| Dual 4-Input NOR Gate | 1        | Zero detection             |
+| **74HC4002**| Dual 4-Input NOR Gate | 1        | Zero (Z) and All-Ones (A1) detection |
 
 **Total Components:** 9 ICs implementing a complete 4-bit ALU
 
 ## Hardware Implementation
 
 ### Circuit Design
-<img width="5983" height="2897" alt="Main" src="https://github.com/user-attachments/assets/386595fb-e17a-4fdd-bfb6-af8aefbc1650" />
+<img width="1205" height="852" alt="image" src="https://github.com/user-attachments/assets/747c88fc-92a2-40c1-a649-9baf31201e5c" />
 
 ## Operation Details
 
@@ -59,22 +60,40 @@ Beyond addition and subtraction, the ALU includes a NAND-based logic path to hig
 
 ### Flag Generation
 
-#### **Zero Flag**
-- Implemented using **74HC4002 Zero Detection Unit**
-- Output: HIGH when result = 0000
+The ALU exposes three status flags: **Carry Out (C)**, **Zero (Z)**, and **All-Ones (A1)**.
 
-#### **Carry Flag**
+#### **Carry Out Flag (C)**
 - Generated from the 4th full adder's carry-out
 - Indicates arithmetic overflow in addition/subtraction
+- Valid only for arithmetic operations (`01` Add, `11` Sub); undefined for NAND (`00`)
+
+#### **Zero Flag (Z)**
+- Implemented using one NOR gate from **74HC4002**
+- Output: HIGH when the 4-bit result equals `0000`
+- Applies to all operations (Add, Sub, NAND)
+
+#### **All-Ones Flag (A1)**
+- Implemented using one NOR gate from **74HC4002**
+- Output: HIGH when both operands are `1111`
+- Applies to all operations (Add, Sub, NAND)
+
+#### Flag Summary
+
+| Flag | Symbol | Condition | Scope |
+|------|--------|-----------|-------|
+| Carry Out | C | Adder carry-out = 1 | Add / Sub |
+| Zero | Z | Result = `0000` | All ops |
+| All-Ones | A1 | A = `1111` and B = `1111` | All ops |
+
 
 ## Truth Table Examples
 
-| A (bin) | B (bin) | Op | Result | Carry | Zero |
-|---------|---------|----|--------|-------|------|
-| 0101    | 0011    | 01 (Add) | 1000 | 0 | 0 |
-| 0111    | 0010    | 11 (Sub) | 0101 | 1 | 0 |
-| 1111    | 1111    | 00 (NAND) | 0000 | X | 1 |
-| 0000    | 0000    | 01 (Add) | 0000 | 0 | 1 |
+| A (bin) | B (bin) | Op | Result | Carry | Zero | A1 |
+|---------|---------|----|--------|-------|------|----|
+| 0101    | 0011    | 01 (Add) | 1000 | 0 | 0 | 0 |
+| 0111    | 0010    | 11 (Sub) | 0101 | 1 | 0 | 0 |
+| 1111    | 1111    | 00 (NAND) | 0000 | X | 1 | 1 |
+| 0000    | 0000    | 01 (Add) | 0000 | 0 | 1 | 0 |
 
 ## Educational Value
 
@@ -85,6 +104,7 @@ This project demonstrates fundamental computer architecture concepts:
 3. **Hardware/Software Trade-off**: Why some operations are emulated in software
 4. **Flag-Based Computing**: Essential for conditional operations in CPUs
 5. **Ripple-Carry Design**: Basic but functional adder architecture
+6. **Flag Semantics**: How apparently similar flags (Z, EQ, A1) encode different conditions, and why naming matters in CPU design
 
 ## ⚠️ Known Limitations
 
@@ -130,15 +150,13 @@ This updated version of the 4-bit minimalistic ALU introduces expanded operation
 ## Hardware Implementation
 
 ### Circuit Design
-<img width="10310" height="4993" alt="Main_1" src="https://github.com/user-attachments/assets/c5a1905a-8094-4885-8976-9bc89adcd3a2" />
+<img width="1200" height="851" alt="image" src="https://github.com/user-attachments/assets/07460c54-837e-4657-b2b3-825e947f8547" />
 
 ### PCB Design in Kicad
-<img width="1904" height="1006" alt="image" src="https://github.com/user-attachments/assets/43411e74-117a-4391-be49-2186bcb70619" />
+<img width="1919" height="1032" alt="image" src="https://github.com/user-attachments/assets/484d738a-144e-421f-bf9d-671259ac36db" />
 
-After validating the architecture in simulation, the design was 
-migrated from breadboard to a custom PCB manufactured via JLCPCB. 
-Each IC is paired with a dedicated 100nF ceramic bypass capacitor
-placed directly at the power pins to suppress switching noise. 
+After validating the architecture in simulation, the design was migrated from breadboard to a custom PCB manufactured via JLCPCB. 
+Each IC is paired with a dedicated 100nF ceramic capacitor placed directly at the power pins to suppress switching noise. 
 A 100µF bulk electrolytic capacitor stabilizes the 5V supply rail.
 
 ### Physical Build
