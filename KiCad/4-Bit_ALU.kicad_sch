@@ -6,7 +6,8 @@
 	(paper "A2")
 	(title_block
 		(title "Discrete 4-Bit ALU")
-		(date "2026-05-01")
+		(date "2026-11-25")
+		(rev "4.0")
 		(company "Neowizen")
 		(comment 1 "Discrete 4-Bit ALU Using 74HC Logic ICs")
 	)
